@@ -1,0 +1,45 @@
+\begin{thebibliography}{1}
+
+\bibitem{tomcat_docs}
+{Apache Software Foundation}.
+\newblock Apache tomcat 9 documentation.
+\newblock \url{https://tomcat.apache.org/tomcat-9.0-doc/}, 2025.
+\newblock Accessed: April 2026.
+
+\bibitem{chokidar_docs}
+{Chokidar Contributors}.
+\newblock Chokidar file watching library.
+\newblock \url{https://github.com/paulmillr/chokidar}, 2025.
+\newblock Accessed: April 2026.
+
+\bibitem{express_docs}
+{Express.js Contributors}.
+\newblock Express.js documentation.
+\newblock \url{https://expressjs.com/}, 2025.
+\newblock Accessed: April 2026.
+
+\bibitem{react_docs}
+{Meta Open Source}.
+\newblock React documentation.
+\newblock \url{https://react.dev/}, 2025.
+\newblock Accessed: April 2026.
+
+\bibitem{openapi_spec}
+{OpenAPI Initiative}.
+\newblock Openapi specification.
+\newblock \url{https://spec.openapis.org/oas/latest.html}, 2025.
+\newblock Accessed: April 2026.
+
+\bibitem{socketio_docs}
+{Socket.IO Contributors}.
+\newblock Socket.io documentation v4.
+\newblock \url{https://socket.io/docs/v4/}, 2025.
+\newblock Accessed: April 2026.
+
+\bibitem{sqljs_docs}
+{sql.js Contributors}.
+\newblock sql.js documentation.
+\newblock \url{https://sql.js.org/}, 2025.
+\newblock Accessed: April 2026.
+
+\end{thebibliography}

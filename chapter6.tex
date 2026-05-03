@@ -1,0 +1,41 @@
+\chapter{Conclusion and Future Work}
+
+\section{Conclusion}
+
+This thesis presented a technical study of an enterprise API connector development platform and confirmed that the implemented workflow is complete, practical, and maintainable for its target environment.
+
+The platform unifies five phases---module management, contract parsing, EJB metadata extraction, mapping/config generation, and module generation---that were previously executed through disconnected tools. The result is improved consistency, lower onboarding effort, and traceable mapping decisions.
+
+Its architecture combines a guided React frontend, an Express orchestration backend, parser/generator utility modules, and real-time feedback via Socket.IO. The hybrid synchronization model (watchers + events + polling fallback) provides resilient behavior under enterprise network constraints. The evaluation also identifies a clear enhancement path for security, portability, storage throughput, and testing depth.
+
+\section{Key Contributions}
+
+The thesis contributes:
+\begin{enumerate}
+    \item complete architectural documentation of frontend, backend, utility, storage, and generation layers;
+    \item algorithm-level analysis of Swagger parsing (\texttt{\$ref} resolution, flattening, operation extraction);
+    \item detailed documentation of JAR bytecode introspection (descriptor/signature parsing, EJB detection, deep path extraction, parameter normalization);
+    \item evidence-based assessment across reliability, security, portability, and maintainability;
+    \item a prioritised roadmap for progressive production hardening.
+\end{enumerate}
+
+\section{Future Work}
+
+The platform is functionally mature, but further hardening is required for broader production use. Highest-priority work includes security controls, cross-platform generation support, storage evolution, and automated testing. Medium-priority work includes frontend refactoring and containerized deployment.
+
+\noindent The roadmap is implemented as phased hardening:
+\begin{itemize}
+    \setlength\itemsep{2pt}
+    \item \textbf{Security}: introduce JWT/RBAC, stricter sanitization, and tighter CORS/certificate policies for broader deployment boundaries.
+    \item \textbf{Portability}: replace or wrap PowerShell generation with a cross-platform orchestrator while preserving Windows compatibility during transition.
+    \item \textbf{Data and quality}: evolve storage for higher concurrency and add unit, integration, and end-to-end automated tests in CI.
+    \item \textbf{Maintainability and scale}: decompose \texttt{YamlUploader}, add containerized deployment, and prepare for tenant isolation and queued generation workloads.
+\end{itemize}
+
+These enhancements extend the same core architecture and are feasible as incremental releases. The workflow model is also transferable to other regulated integration domains where API-to-enterprise mapping is required and source-code access may be limited.
+
+\section{Summary}
+
+The thesis shows that a workflow-driven connector platform is both technically feasible and operationally valuable in enterprise integration settings. The evaluated implementation delivers strong coverage across parsing, introspection, mapping, generation, synchronization, and deployment.
+
+The roadmap defines incremental next steps that build directly on the current architecture, enabling hardening and scale-up without fundamental redesign.

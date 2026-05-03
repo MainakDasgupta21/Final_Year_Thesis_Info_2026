@@ -1,0 +1,39 @@
+\chapter{Related Works}
+
+\section{API-First and Contract-Driven Engineering}
+
+API-first engineering treats the API specification as the primary artifact for implementation, testing, and documentation~\cite{openapi_spec}. OpenAPI/Swagger has become the standard contract format for machine-readable endpoint and schema definition.
+
+In contract-driven practice, producer and consumer implementations must remain aligned with that specification. This is critical in enterprise integration, where REST APIs often front legacy EJB-based services. The platform in this thesis follows this model: it parses OpenAPI/Swagger contracts, derives structured metadata, and drives mapping and generation from that contract as the source of truth.
+
+\section{Existing Code Generation Ecosystems}
+
+OpenAPI Generator and Swagger Codegen show that specification-driven scaffolding can accelerate client and server development. They are effective for broad language coverage and template customization.
+
+However, these generators are optimized for generic or greenfield outputs. Enterprise connector environments impose fixed module hierarchies, legacy EJB service contracts, and organization-specific Maven pipelines. Template-based and model-driven approaches remain useful, but they often require substantial adaptation before they fit this context. The examined platform therefore applies a direct contract-to-enterprise transformation flow that combines parsing, metadata extraction, mapping, and generation in one pipeline.
+
+\section{Bytecode Introspection and Metadata Extraction}
+
+The platform's key differentiator is bytecode introspection of compiled client-kit JAR files without source code. Using \texttt{java-class-tools}, it parses class metadata in Node.js/browser environments and avoids JVM-only tooling.
+
+Its extraction depth goes beyond signatures: it resolves hierarchy information, detects EJB interfaces through annotation and naming heuristics, parses generic signatures, flattens nested field paths, and normalizes synthetic parameter names. This output directly supports accurate interactive mapping.
+
+\section{Workflow Automation for Integration Teams}
+
+CI/CD systems automate downstream build and deployment, while low-code integration platforms automate high-level workflow design. Neither category directly addresses the full upstream connector-preparation workflow in legacy EJB environments.
+
+The studied platform sits between these approaches. It offers guided mapping and automation comparable to low-code usability while preserving control required for organization-specific module structures and build chains.
+
+\section{Real-Time Communication in Development Tools}
+
+Real-time feedback is important for long-running generation tasks. Socket.IO~\cite{socketio_docs} provides event messaging, reconnection, and fallback behaviour that fits enterprise network conditions.
+
+In this platform, Socket.IO is used for (i) line-by-line generation log streaming and (ii) state synchronisation events for modules, specifications, client kits, and configurations, with polling fallback for resilience.
+
+\section{Comparison and Positioning}
+
+Existing tools cover fragments of the problem: generic generators focus on code templates, low-code tools focus on abstraction, and CI/CD tools focus on downstream automation. The studied platform combines contract parsing, bytecode extraction, interactive mapping, YAML generation, and scripted module creation in one enterprise-conformant workflow.
+
+Its position is therefore distinct: compiled enterprise artifacts are first-class inputs, outputs match existing module conventions, and users receive real-time operational visibility.
+
+Compared with generic generators, low-code platforms, and CI/CD pipelines, the platform studied here is distinctive in three combined capabilities: bytecode-driven enterprise metadata extraction, interactive contract-to-EJB mapping, and generation output aligned to existing module conventions in air-gapped deployment settings.

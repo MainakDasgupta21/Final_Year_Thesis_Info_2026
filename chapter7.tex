@@ -1,0 +1,127 @@
+\chapter{Appendix}
+
+\section{Backend REST API Endpoint Matrix}
+
+The backend exposes a structured set of REST API endpoints organised by functional domain. Table~\ref{tab:appendix_endpoints} catalogues every observed route, its HTTP method, and primary purpose. Taken together, these endpoints span the full connector development lifecycle --- from service health verification through module generation --- and constitute the platform's programmatic interface.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|l|l|p{5.5cm}|}
+\hline
+\textbf{Method} & \textbf{Path} & \textbf{Primary Purpose} \\
+\hline
+GET & \texttt{/api/health} & Service health and path diagnostics \\
+\hline
+GET & \texttt{/api/modules} & List available connector modules \\
+\hline
+POST & \texttt{/api/modules} & Create a new connector module \\
+\hline
+DELETE & \texttt{/api/modules/:name} & Delete module DB records \\
+\hline
+GET & \texttt{/api/modules/:name/\allowbreak swaggers} & List Swagger files for a module \\
+\hline
+POST & \texttt{/api/swagger} & Upload a Swagger specification \\
+\hline
+GET & \texttt{/api/swagger} & List all Swagger files \\
+\hline
+GET & \texttt{/api/swagger/:id} & Retrieve Swagger content by ID \\
+\hline
+DELETE & \texttt{/api/swagger/:id} & Delete Swagger and related configs \\
+\hline
+POST & \texttt{/api/swagger/json} & Upload Swagger as JSON body \\
+\hline
+POST & \texttt{/api/client-kit} & Upload and parse client-kit JARs \\
+\hline
+GET & \texttt{/api/client-kit} & List parsed client-kit metadata \\
+\hline
+GET & \texttt{/api/client-kit/:id} & Retrieve full EJB metadata \\
+\hline
+GET & \texttt{/api/client-kit/:id/\allowbreak enrich} & Re-parse JAR for enriched paths \\
+\hline
+DELETE & \texttt{/api/client-kit/:id} & Delete client-kit and JAR files \\
+\hline
+POST & \texttt{/api/user-config} & Generate and save config YAML \\
+\hline
+GET & \texttt{/api/configs} & List all saved configurations \\
+\hline
+GET & \texttt{/api/config/:id} & Retrieve config with context \\
+\hline
+PUT & \texttt{/api/config/:id} & Update existing configuration \\
+\hline
+GET & \texttt{/api/config/:id/\allowbreak download} & Download config as file \\
+\hline
+POST & \texttt{/api/generate-module} & Trigger module generation \\
+\hline
+GET & \texttt{/api/generate-module/\allowbreak status} & Check generation capability \\
+\hline
+\end{tabular}
+\caption{Complete backend REST API endpoint matrix}
+\label{tab:appendix_endpoints}
+\end{table}
+
+\section{Socket.IO Event Inventory}
+
+The real-time communication channel carries several categories of events that enable live synchronisation between the backend and all connected frontend clients.
+
+Module synchronisation centres on the \texttt{modules:sync} event, which broadcasts the current module list whenever a module is created, deleted, or detected through filesystem operations. This event is also emitted to each client upon initial connection, ensuring that every session begins with a complete module inventory.
+
+Swagger-related events include \texttt{swaggers:sync} for full specification list synchronisation scoped to a particular module, \texttt{swagger:uploaded} for notifying clients of new specification uploads with metadata, and \texttt{swagger:deleted} for signalling specification removal by identifier. Each event payload includes the module name, enabling clients to filter updates relevant to their currently selected context.
+
+Client-kit events follow an analogous pattern. The \texttt{clientkit:sync} event provides the full JAR inventory as an array of identifier and name pairs, while \texttt{clientkit:uploaded} signals new JAR uploads and \texttt{clientkit:deleted} indicates artifact removal. Configuration events, in turn, use \texttt{configs:sync} to broadcast the current list of saved configurations with endpoint names and associated metadata.
+
+The generation event family furnishes the real-time feedback channel during module creation. The \texttt{generate:start} event signals the beginning of an operation with the associated module name. As the spawned PowerShell process produces output, the \texttt{generate:output} event transmits each line individually. Upon completion, the \texttt{generate:done} event carries a success flag, summary message, and module name. Together, these events enable the frontend to render a responsive console panel free of polling latency.
+
+Clients may also emit request events to the server. The \texttt{request:swaggers} event, carrying a module name, triggers a targeted synchronisation response for that module's specifications, while \texttt{request:configs} triggers a full configuration list refresh.
+
+\section{Database Schema}
+
+The backend maintains three primary tables in its sql.js SQLite database, each corresponding to a distinct category of platform artifact.
+
+The \texttt{swagger\_files} table stores specification metadata: a unique auto-incrementing identifier, file name, content field, file path on disk, module name (defaulting to the required module), and a creation timestamp. A unique index on the combination of file name and module name prevents duplicate uploads within the same module.
+
+The \texttt{client\_kit\_metadata} table stores parsed EJB structures: an identifier, the original JAR file names as a comma-separated string, a JSON-serialised \texttt{ejb\_data} field containing the full array of parsed EJB interface and method metadata, a \texttt{file\_hashes} field holding comma-separated SHA-256 hashes for content-based deduplication, and a creation timestamp. A unique index on the \texttt{file\_hashes} column ensures that JAR files with identical content are stored only once, irrespective of filename.
+
+The \texttt{user\_configs} table stores configuration metadata: an identifier, foreign key references to the associated Swagger entry (\texttt{swagger\_id}) and client-kit entry (\texttt{kit\_id}), the module name, a filesystem path to the generated YAML file, and a creation timestamp. These foreign keys provide traceability between input artifacts and generated configurations, enabling cascade operations when source artifacts are deleted. Schema migration logic handles the addition of columns and indexes to existing tables, ensuring backward compatibility when upgrading from earlier database versions.
+
+\section{Runtime Directory Structure}
+
+All project-related filesystem paths are anchored to the \texttt{DIGITAL\_ROOT} environment variable, which defaults to a sibling directory of the server at the relative path \texttt{../\allowbreak digital-ces-connector/\allowbreak digital}. The \texttt{storagePaths.js} module computes every downstream path from this single root, centralising path logic and enabling environment-specific overrides without code changes.
+
+Beneath the digital root, the module base path follows the pattern \texttt{bb/\allowbreak digital-server/\allowbreak digital-rest-api/}, under which individual connector modules are organised as sibling directories. Within each module, Swagger specifications reside at \texttt{src/\allowbreak main/\allowbreak resources/\allowbreak swagger/} and configuration files at \texttt{src/\allowbreak main/\allowbreak resources/\allowbreak configs/}. Enterprise client-kit JAR files occupy a shared \texttt{client-kits/} directory at the digital root level.
+
+The backend server maintains several additional local directories for runtime data. The \texttt{data/} directory houses the SQLite database file at \texttt{configs.db}. The \texttt{uploads/} directory provides temporary storage during file processing. The \texttt{jars/} directory --- which, in the current configuration, points to the shared \texttt{client-kits/} directory --- stores deduplicated JAR files by content hash. The \texttt{certs/} directory contains auto-generated SSL certificate and key files. All directories are created automatically on first startup through recursive directory creation if they do not already exist.
+
+\section{Generation Script Parameters}
+
+The module-generation PowerShell script accepts several command-line parameters that govern its behaviour.
+
+The \texttt{-swaggerFile} parameter specifies the relative path to the API specification file within the digital connector repository, following the pattern:
+
+\smallskip
+\noindent\texttt{bb/\allowbreak digital-server/\allowbreak digital-rest-api/\allowbreak <module>/\allowbreak src/\allowbreak main/\allowbreak resources/\allowbreak swagger/\allowbreak <filename>}
+\smallskip The \texttt{-userConfigFile} parameter supplies the absolute path to the user-config YAML file containing field mapping definitions and EJB call configurations.
+
+The \texttt{-addToExisting} flag enables safe-add mode, appending new API endpoint configurations and generated source files to an existing connector module without modifying or overwriting previously generated code. This mode is engaged by default in the platform's workflow and is well suited to incremental connector development.
+
+The \texttt{-force} flag, by contrast, activates full recreation mode, removing the existing module directory tree and regenerating all artifacts from scratch. It is intended for scenarios where the specification or mapping has changed substantially enough that incremental addition would leave inconsistent artifacts. The script emits explicit mode messaging to ensure operational awareness.
+
+The \texttt{-skipBuild} flag bypasses the Maven compilation step after source file generation --- a convenience during iterative development or in environments where Maven dependencies are unavailable.
+
+At runtime, the backend discovers the generation script by scanning the digital root directory for files matching the glob pattern \texttt{create-new-api-\allowbreak module*.ps1} and selecting the lexicographically last match, ensuring that the most recent version is used when multiple script versions coexist.
+
+\section{Technology Stack Summary}
+
+The platform is constructed from established, production-grade components selected for their suitability to the constraints of enterprise deployment.
+
+On the frontend, React 18 provides the UI framework, with React Router v7 managing client-side navigation under the \texttt{/retail} base path. Supporting libraries include \texttt{js-yaml} for YAML parsing and serialisation, \texttt{jszip} for reading JAR files as ZIP archives, \texttt{java-class-tools} for parsing Java class file bytecode in the browser, \texttt{socket.io-client} for real-time WebSocket communication with automatic reconnection, and craco for customising the Create React App build configuration.
+
+On the backend, Node.js 18 with Express 4 handles HTTP routing and middleware. sql.js provides in-process SQLite persistence compiled to WebAssembly, Socket.IO 4 delivers WebSocket event streaming, Multer manages multipart file uploads with memory storage and a hundred-megabyte size limit, and chokidar 3 performs cross-platform filesystem watching with debounced write stabilisation. Additional libraries include \texttt{js-yaml} for YAML processing, \texttt{selfsigned} for automatic self-signed TLS certificate generation, and \texttt{dotenv} for environment variable configuration. PM2 manages the production process with automatic crash recovery.
+
+The deployment stack comprises Apache Tomcat for hosting the frontend as a \texttt{retail.war} web application, a PowerShell build-and-package script for automated artifact preparation, and the Java \texttt{jar} command for WAR archive creation.
+
+\section{Project Deliverables Summary}
+
+The API Development Tool project produces several deliverable artifacts upon successful completion of the build and packaging pipeline. The frontend deliverable is a \texttt{retail.war} archive containing the optimised React application, ready for deployment to an Apache Tomcat application server. The backend deliverable is a self-contained Node.js server bundle comprising the Express application, all npm dependencies, environment configuration templates, and the sql.js database engine.
+
+These two components are combined into a single deployable ZIP archive by the automated build-and-package script. The archive includes all runtime dependencies, eliminating the need for internet access during deployment --- a critical property for air-gapped enterprise environments. Configuration is managed through environment variables, enabling the same archive to be deployed across development, staging, and production environments without code modifications.

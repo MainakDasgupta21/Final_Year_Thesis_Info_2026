@@ -1,0 +1,72 @@
+\chapter{Results and Analysis}
+
+\section{Introduction}
+
+This chapter presents the technical evaluation of the API Development Tool based on source-code analysis, architectural review, and runtime behavior. The assessment covers workflow completeness, parser effectiveness, synchronization correctness, security posture, and deployment readiness.
+
+\section{Workflow and Parser Effectiveness}
+
+Backend routes and frontend flow confirm full lifecycle coverage across module management, specification ingestion, JAR introspection, mapping/configuration, and module generation.
+
+Specification parsing supports OpenAPI/Swagger variants, resolves \texttt{\$ref}, flattens composed schemas, and applies correct parameter-precedence rules. JAR parsing handles descriptor and generic-signature decoding, EJB detection by annotation and heuristics, and deep field-path extraction with bounded recursion. Configuration generation produces valid YAML for multi-EJB chains, request/response mappings, and interface-to-implementation path rewriting, with source inference reducing manual effort.
+
+\section{Architecture, Synchronisation, and Persistence}
+
+The two-tier architecture separates frontend workflow concerns from backend orchestration and persistence concerns. Backend endpoints are domain-grouped (modules, Swagger, client-kit, configs, generation), which reduces change impact.
+
+Frontend centralization in \texttt{YamlUploader} provides coherent workflow control and remains decomposable into smaller hooks/components. Utility modules (Swagger parser, JAR parser, configuration generator) are reused across browser/server contexts, reducing behavior drift.
+
+Realtime communication is effective for both generation logging and state synchronization. Socket.IO event streaming, reconnect behavior, startup state emission, debounced watcher handling, and polling fallback provide reliable eventual consistency in enterprise network conditions.
+
+The sql.js layer correctly applies schema setup, migration, and uniqueness constraints. Duplicate prevention for Swagger (file+module) and client-kit content (SHA-256 hash) is enforced at storage level.
+
+Startup reconciliation routines provide self-healing behavior by importing missing files, removing stale records, cascading dependent cleanup, and correcting path drift. Export-on-mutation persistence provides strong durability for the intended team-scale workload.
+
+\section{Security, Deployment, and Portability}
+
+The security model matches its intended trusted-network deployment. Endpoints are open by design, while upload and path handling apply extension checks and traversal-safe path resolution.
+
+Generation requests are validated before script invocation. HTTPS can be enabled via auto-generated self-signed certificates. The architecture can be extended with authentication and stricter CORS if deployment scope expands.
+
+Deployment has been validated in an air-gapped Linux environment, with path-resolution logic supporting both Windows and Linux file conventions. PM2 restart supervision and self-signed HTTPS support improve operational readiness.
+
+Generation depends on PowerShell and therefore degrades gracefully on non-Windows platforms (HTTP 501 for generation while other features remain available). Packaging automation produces a self-contained deployable bundle with pre-check steps.
+
+\section{Consolidated Findings}
+
+The following table summarises the evaluation findings across the key dimensions assessed in this analysis.
+
+\begin{table}[H]
+\centering
+\caption{Consolidated findings matrix across evaluation dimensions.}
+\label{tab:findings}
+\begin{tabular}{|p{3.5cm}|p{3.0cm}|p{6.0cm}|}
+\hline
+\textbf{Dimension} & \textbf{Assessment} & \textbf{Key Observation} \\
+\hline
+Workflow Coverage & Strong & Complete end-to-end pipeline from specification upload through module generation \\
+\hline
+Architecture & Good & Clean separation between frontend workflow, backend orchestration, and utility layer \\
+\hline
+Parsing \& Introspection & Strong & Comprehensive Swagger resolution and deep bytecode field path extraction \\
+\hline
+Real-time Feedback & Strong & Socket.IO streaming with debounced watchers and polling fallback \\
+\hline
+Persistence & Good & sql.js with startup reconciliation, hash-based deduplication, and self-healing sync \\
+\hline
+Security & Appropriate & Trusted-network design with path validation and HTTPS encryption \\
+\hline
+Portability & Good & Cross-platform path resolution with graceful environment adaptation \\
+\hline
+Testing & Extensible & Architecture supports progressive addition of test suites \\
+\hline
+Scalability & Fit for Purpose & Self-contained single-server model optimised for team-scale deployment \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Performance Observations}
+
+Performance is appropriate for single-user or small-team operation. Swagger parsing is typically sub-second for common specs due to cached reference resolution.
+
+JAR parsing is the dominant computation cost; batching, recursion bounds, and flatten-cache reuse control latency and memory growth. Generation time is mainly external (PowerShell + Maven), commonly tens of seconds to minutes, with real-time streaming reducing perceived wait and timeout guards preventing indefinite hangs.

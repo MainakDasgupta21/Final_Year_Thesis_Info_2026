@@ -1,0 +1,70 @@
+\chapter{Introduction}
+
+Enterprise telecom integration teams repeatedly build API connectors that map external REST contracts to internal EJB-based services. The lifecycle is predictable but fragmented: engineers parse OpenAPI/Swagger files, inspect compiled JAR metadata, map request and response fields, prepare YAML configurations, and run generation scripts. In many teams, these steps are handled with separate tools and ad-hoc notes, which increases onboarding time, introduces inconsistency, and raises maintenance cost.
+
+This thesis studies the API Development Tool built during an internship at Amdocs. The platform combines a React 18 frontend~\cite{react_docs} and a Node.js/Express backend~\cite{express_docs} to support specification upload, JAR bytecode introspection, interactive mapping, YAML generation, and connector module generation with Socket.IO~\cite{socketio_docs} progress streaming. Its main contribution is workflow unification: previously disconnected activities become a single, traceable process.
+
+\section{Motivation}
+
+The original connector workflow relied heavily on manual interpretation and undocumented decisions. Engineers used text editors for API contracts, Java tools for class inspection, spreadsheets for mappings, and command-line scripts for generation. This approach consumed time and produced variation in naming, structure, and mapping quality.
+
+Because downstream generation depends on strict YAML structure, mapping errors propagated into generated code and Maven artifacts. The process also lacked a central history of why mappings were chosen, making updates and debugging slow. These issues motivated a guided platform that enforces consistency and records decisions.
+
+Table~\ref{tab:manual_vs_automated} summarises the transition from manual to tool-assisted development.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of manual and tool-assisted connector development.}
+\label{tab:manual_vs_automated}
+\small
+\begin{tabular}{|p{3.2cm}|p{4.5cm}|p{4.5cm}|}
+\hline
+\textbf{Aspect} & \textbf{Manual Workflow} & \textbf{Tool-Assisted Workflow} \\
+\hline
+Specification analysis & Text editors, manual reading & Automated parsing with reference resolution and schema flattening \\
+\hline
+Service discovery & JAR decompilation in Java IDEs & Browser-based bytecode introspection without JVM \\
+\hline
+Field mapping & Spreadsheets, ad-hoc notes & Interactive dropdowns with source inference \\
+\hline
+Configuration authoring & Hand-written YAML files & Automated YAML generation from mapping state \\
+\hline
+Code generation & Command-line script invocation & One-click generation with real-time streaming \\
+\hline
+Traceability & Undocumented, scattered files & Full audit trail in database \\
+\hline
+Consistency & Varies by engineer & Enforced by structured workflow \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Problem Context}
+
+The platform operates in an existing enterprise environment, not a greenfield system. It must align with a mature digital connector module tree, Maven-based build plugins, compiled client-kit JAR artifacts, and mixed Windows/Linux deployment conditions, including air-gapped production networks.
+
+Accordingly, generated outputs must match fixed directory conventions, such as Swagger files under \texttt{src/\allowbreak main/\allowbreak resources/\allowbreak swagger/} and configs under \texttt{src/\allowbreak main/\allowbreak resources/\allowbreak configs/}. The key challenge is end-to-end continuity: connecting ingestion, introspection, mapping, generation, and synchronisation without breaking enterprise constraints.
+
+\section{Objectives}
+
+This thesis provides a code-level and architecture-level analysis of the platform. It traces how inputs move through frontend, backend, filesystem, and generation layers from specification upload to deployable output.
+
+It also evaluates runtime and deployment behaviour, including Tomcat-hosted frontend delivery, PM2-managed backend operation, certificate handling, and filesystem-centric persistence. The study reports evidence-backed findings across security, reliability, portability, and maintainability, and proposes prioritised improvements.
+
+\section{Method of Study}
+
+The methodology is repository-driven technical analysis. Backend evaluation covers route logic, persistence design, synchronisation routines, and generation orchestration. Frontend evaluation covers workflow components, configuration editing, and API communication.
+
+The Swagger parser, JAR parser, and configuration generator are examined in depth: reference resolution and schema flattening, bytecode and signature parsing, EJB detection, field-path extraction, source inference, and multi-EJB mapping assembly. Conclusions are grounded in observed implementation behaviour.
+
+\section{Report Organisation}
+
+The remaining chapters are organised as follows:
+
+\begin{enumerate}
+    \setcounter{enumi}{1}
+    \item \textbf{Chapter 2: Purpose and Scope} defines project intent, functional boundaries, and expected outcomes.
+    \item \textbf{Chapter 3: Related Works} positions the platform against API-first tooling, code generators, and workflow automation approaches.
+    \item \textbf{Chapter 4: System Architecture and Design} details frontend, backend, utilities, synchronisation, generation, and deployment design.
+    \item \textbf{Chapter 5: Results and Analysis} presents evidence-based evaluation across workflow coverage, architecture, reliability, security, and portability.
+    \item \textbf{Chapter 6: Conclusion and Future Work} summarises contributions and outlines a phased enhancement roadmap.
+\end{enumerate}

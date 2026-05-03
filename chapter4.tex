@@ -1,0 +1,158 @@
+\chapter{System Architecture and Design}
+
+\section{Overview of the System}
+
+The API Development Tool follows a two-tier client-server model with three functional layers: a React workflow frontend, a Node.js/Express orchestration backend, and an enterprise connector repository containing module structure, scripts, and Maven tooling. Communication is split between REST (CRUD and control operations) and Socket.IO (real-time logs and sync events). The backend links web interactions to filesystem artifacts and external generation scripts. Figure~\ref{fig:system_arch} shows this layered boundary.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    comp/.style={rectangle, rounded corners=4pt, line width=0.6pt,
+                 text width=2.4cm, align=center, minimum height=1cm,
+                 font=\footnotesize, inner sep=5pt,
+                 drop shadow={shadow xshift=0.5pt, shadow yshift=-0.5pt, opacity=0.15}},
+    layer/.style={rectangle, rounded corners=8pt, draw=#1!45, line width=1pt,
+                  inner xsep=10pt, inner ysep=20pt, fill=#1!6},
+    layerlbl/.style={font=\footnotesize\bfseries, text=black!55},
+    plbl/.style={font=\scriptsize, rounded corners=3pt, inner sep=3pt,
+                 text=black!80, fill=white, draw=black!15},
+    node distance=0.35cm
+]
+
+% --- Presentation Layer components ---
+\node[comp, fill=blue!15, draw=blue!50!black] (yu)
+    {\textbf{YamlUploader}\\{\scriptsize Workflow Engine}};
+\node[comp, fill=blue!15, draw=blue!50!black, right=of yu] (cv)
+    {\textbf{ConfigViewer}\\{\scriptsize Editor}};
+\node[comp, fill=blue!15, draw=blue!50!black, right=of cv] (sp_c)
+    {\textbf{Swagger Parser}\\{\scriptsize Client-Side}};
+\node[comp, fill=blue!15, draw=blue!50!black, right=of sp_c] (jp_c)
+    {\textbf{JAR Parser}\\{\scriptsize Client-Side}};
+
+% --- Application Layer components ---
+\node[comp, fill=green!14, draw=green!45!black, below=3.5cm of yu] (rest)
+    {\textbf{REST API}\\{\scriptsize Routes}};
+\node[comp, fill=green!14, draw=green!45!black, right=of rest] (sio)
+    {\textbf{Socket.IO}\\{\scriptsize Event Handler}};
+\node[comp, fill=green!14, draw=green!45!black, right=of sio] (gen)
+    {\textbf{Generation}\\{\scriptsize Orchestrator}};
+\node[comp, fill=green!14, draw=green!45!black, right=of gen] (sync)
+    {\textbf{Sync Engine}\\{\scriptsize Chokidar}};
+
+% --- Storage Layer components ---
+\node[comp, fill=orange!16, draw=orange!50!black, below=3.5cm of rest,
+      text width=3cm] (db)
+    {\textbf{sql.js Database}\\{\scriptsize In-Process SQLite}};
+\node[comp, fill=orange!16, draw=orange!50!black, right=0.5cm of db,
+      text width=4.2cm] (fstore)
+    {\textbf{Filesystem Storage}\\{\scriptsize swagger/ ~ configs/ ~ client-kits/}};
+
+% --- External System ---
+\node[comp, fill=red!14, draw=red!45!black, below=3cm of db,
+      text width=5cm, xshift=1.8cm] (repo)
+    {\textbf{Digital Connector Repository}\\{\scriptsize Module tree ~ | ~ Scripts ~ | ~ Maven build}};
+
+% --- Layer backgrounds (drawn BEHIND components) ---
+\begin{pgfonlayer}{background}
+\node[layer=blue, fit=(yu)(cv)(sp_c)(jp_c)] (fe_layer) {};
+\node[layer=green, fit=(rest)(sio)(gen)(sync)] (be_layer) {};
+\node[layer=orange, fit=(db)(fstore)] (st_layer) {};
+\node[layer=red, fit=(repo)] (ext_layer) {};
+\end{pgfonlayer}
+
+% --- Layer titles INSIDE each box (clear of the inter-layer gaps) ---
+\node[layerlbl, anchor=north] at ([yshift=-3pt]fe_layer.north)
+    {Presentation Layer --- React 18 Frontend (Tomcat WAR)};
+\node[layerlbl, anchor=north] at ([yshift=-3pt]be_layer.north)
+    {Application Layer --- Node.js / Express Backend (PM2)};
+\node[layerlbl, anchor=north] at ([yshift=-3pt]st_layer.north)
+    {Storage Layer};
+\node[layerlbl, anchor=north] at ([yshift=-3pt]ext_layer.north)
+    {External System};
+
+% --- Protocol-coloured arrows (anchored to component x-positions) ---
+\draw[<->, line width=1.1pt, >=stealth, color=blue!55!black]
+    (cv.south |- fe_layer.south) --
+    node[plbl, left, xshift=-4pt] {REST / HTTPS}
+    (cv.south |- be_layer.north);
+\draw[<->, line width=1.1pt, >=stealth, color=teal!65!black]
+    (sp_c.south |- fe_layer.south) --
+    node[plbl, right, xshift=4pt] {Socket.IO}
+    (sp_c.south |- be_layer.north);
+\draw[<->, line width=1.1pt, >=stealth, color=orange!55!black]
+    (rest.south |- be_layer.south) --
+    node[plbl, left, xshift=-4pt] {SQL Queries}
+    (rest.south |- st_layer.north);
+\draw[<->, line width=1.1pt, >=stealth, color=green!50!black]
+    (gen.south |- be_layer.south) --
+    node[plbl, right, xshift=4pt] {File I/O + Watchers}
+    (gen.south |- st_layer.north);
+\draw[->, line width=1.1pt, >=stealth, color=red!50!black]
+    (db.south |- st_layer.south) --
+    node[plbl, right, xshift=4pt] {PowerShell spawn}
+    (db.south |- ext_layer.north);
+
+\end{tikzpicture}
+\caption{Layered system architecture of the API Development Tool, showing internal subcomponents, communication protocols, and deployment boundaries.}
+\label{fig:system_arch}
+\end{figure}
+
+\section{Frontend Architecture}
+
+The frontend is a React 18~\cite{react_docs} single-page app with React Router under the \texttt{/retail} base path. The root route hosts \texttt{YamlUploader} (primary workflow), while \texttt{/configs} hosts \texttt{ConfigViewer} (configuration review/editing).
+
+\texttt{YamlUploader} centralizes workflow state for module context, specification data, JAR metadata, mappings, generation status, and console output. It establishes Socket.IO subscriptions and a polling fallback for environments with unstable WebSocket connectivity. Backend calls are wrapped in a unified API service with environment-driven base URL resolution. \texttt{ConfigViewer} reuses parser/generator utilities to keep editing behavior consistent with initial generation.
+
+\section{Utility Layer: Swagger Parser}
+
+The Swagger parser converts OpenAPI/Swagger documents into mapping-ready metadata through three linked steps: \texttt{\$ref} resolution, schema flattening, and operation extraction.
+
+\texttt{\$ref} targets are resolved by traversing JSON pointer segments, with \texttt{WeakMap}-based caching to avoid repeated work. Flattening then produces deduplicated dot-path fields (including arrays and composed schemas via \texttt{allOf}/\texttt{oneOf}/\texttt{anyOf}) with circular-reference protection and depth bounds. Operation extraction combines these results to produce parameter and schema details per endpoint, including precedence-safe merge of path-level and operation-level parameters and support for both Swagger 2.0 and OpenAPI 3.0 request-body styles.
+
+\section{Utility Layer: JAR Parser and Bytecode Introspection}
+
+The JAR parser extracts EJB metadata directly from compiled archives without source code or JVM runtime requirements. Browser and server variants share the same core logic.
+
+JAR files are read via \texttt{jszip}; class files are processed by \texttt{java-class-tools} in batches. The parser decodes JVM descriptors and generic signatures, resolves hierarchy details, and identifies service interfaces using \texttt{javax.ejb.Remote}/\texttt{jakarta.ejb.Remote} annotations plus naming heuristics.
+
+Its critical output is deep, navigable field paths for method inputs and outputs. Recursive traversal includes inherited fields, getter-derived fields, and generic collection element types, bounded by configured depth and path caps for stability. Compiler-generated parameter names are normalized to meaningful names using type-based heuristics.
+
+\section{Utility Layer: Configuration Generator}
+
+The configuration generator converts interactive mappings into YAML required by the generation pipeline. It handles path parameters, request mappings, response mappings, and multi-EJB call ordering.
+
+Request-side logic normalizes target paths (prefix cleanup, array notation, casing), supports source inference for unmapped fields, and rewrites interface-derived prefixes to implementation-compatible paths when needed. Response-side logic filters non-business fields, derives usable nested paths, and supports chained mappings across multiple EJB calls.
+
+The output YAML includes module metadata, generation flags, endpoint definitions, EJB call sequences, and field correspondences, serialized through \texttt{js-yaml}.
+
+The end-to-end transformation is linear and implementation-bound: Swagger/OpenAPI parsing and JAR introspection produce field metadata, interactive mapping resolves source-target correspondences, and the resulting YAML feeds module generation.
+
+\section{Backend Architecture}
+
+The backend is built on Express.js~\cite{express_docs} and combines routing, storage, synchronization, real-time messaging, and generation orchestration in one service. Startup initializes environment variables, storage paths, directories, sql.js schema/migrations, reconciliation routines, and HTTP/HTTPS server plus Socket.IO.
+
+REST endpoints are grouped by domain: modules, Swagger files, client kits, user configs, and generation, with a health endpoint for diagnostics. Metadata persistence uses sql.js~\cite{sqljs_docs} tables (\texttt{swagger\_files}, \texttt{client\_kit\_metadata}, \texttt{user\_configs}) with uniqueness constraints and synchronous export-on-write durability. Validation logic enforces file type and path safety (including path traversal checks) and normalizes module identifiers.
+
+\section{Filesystem Synchronisation}
+
+Consistency between disk state and metadata is maintained in two phases: startup reconciliation and runtime monitoring. Startup routines re-import missing files, remove stale records, and repair drift for modules, client kits, and configs.
+
+At runtime, chokidar~\cite{chokidar_docs} watchers monitor module, client-kit, and config paths with debounced processing and sync coalescing. Confirmed changes trigger database updates and Socket.IO broadcasts (\texttt{modules:sync}, \texttt{swaggers:sync}, \texttt{clientkit:sync}, \texttt{configs:sync}). Generation events (\texttt{generate:start}, \texttt{generate:output}, \texttt{generate:done}) provide live execution visibility.
+
+\section{Module Generation Pipeline}
+
+Generation converts saved Swagger and user-config artifacts into deployable module code. The backend locates the generation script, invokes it through \texttt{spawn}, and supports safe-add (default), force, and optional skip-build modes.
+
+Process output is streamed line-by-line via \texttt{generate:output}, and completion status is emitted through \texttt{generate:done} after success/failure marker checks. A ten-minute timeout protects against hung executions. On platforms without PowerShell, the endpoint returns HTTP 501 while leaving all non-generation features available.
+
+\section{Deployment Architecture}
+
+Deployment uses two services: frontend WAR on Tomcat~\cite{tomcat_docs} and backend Node.js service under PM2. Packaging is automated by a ten-step PowerShell flow covering dependency checks, frontend build, WAR creation, optional smoke tests, and final ZIP bundling.
+
+All runtime paths derive from a configurable digital root, allowing the same codebase to run on Windows and Linux without hardcoded environment-specific paths.
+
+\section{Key Design Decisions}
+
+The implementation prioritizes self-contained deployment, operational transparency, and compatibility with existing enterprise tooling. Filesystem-centric artifact storage plus sql.js export-on-write persistence offers simple auditability and durability for team-scale use.
+
+Workflow state centralization in \texttt{YamlUploader} favors end-to-end usability, while PowerShell-based generation preserves compatibility with established Windows-centric pipelines. Avoiding external database dependencies keeps deployment viable in air-gapped environments.

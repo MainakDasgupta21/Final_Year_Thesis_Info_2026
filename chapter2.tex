@@ -1,0 +1,99 @@
+\chapter{Purpose and Scope}
+
+\section{Purpose of the Project}
+
+Enterprise connector delivery in telecom teams was historically fragmented across manual specification reading, JAR inspection, mapping spreadsheets, YAML editing, and script execution. This process produced inconsistent outputs and weak traceability.
+
+The API Development Tool addresses that gap by consolidating the full lifecycle in one guided web application. A React 18 frontend~\cite{react_docs} drives the workflow, and a Node.js/Express backend~\cite{express_docs} manages parsing, persistence, synchronisation, and generation orchestration. The purpose is operationally clear: shorten delivery time, standardise mapping outputs, and preserve an auditable record of all connector decisions.
+
+\section{Functional Scope}
+
+The system scope covers five sequential phases that transform input artifacts into a deployable connector module. Figure~\ref{fig:workflow_lifecycle} shows the artifact flow.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    phase/.style={rectangle, rounded corners=6pt, line width=0.7pt,
+                  text width=10cm, align=center, minimum height=1.5cm,
+                  inner xsep=10pt, inner ysep=8pt,
+                  drop shadow={shadow xshift=0.8pt, shadow yshift=-0.8pt, opacity=0.2}},
+    badge/.style={circle, minimum size=0.7cm, font=\footnotesize\bfseries,
+                  text=white, inner sep=0pt, line width=0.7pt,
+                  drop shadow={shadow xshift=0.5pt, shadow yshift=-0.5pt, opacity=0.15}},
+    arr/.style={->, line width=1.3pt, >=stealth, color=black!40},
+    node distance=1.2cm
+]
+
+% Phase 1 - Blue
+\node[phase, draw=blue!55!black, fill=blue!12] (p1)
+    {\textbf{\small Module Management}\\[3pt]
+     \footnotesize Create, select, or delete connector modules; normalise names; establish directory structure};
+\node[badge, fill=blue!60!black, left=0.45cm of p1.west] {\textsf{1}};
+
+% Phase 2 - Teal
+\node[phase, draw=teal!55!black, fill=teal!10, below=of p1] (p2)
+    {\textbf{\small Specification Ingestion \& Parsing}\\[3pt]
+     \footnotesize Upload Swagger/OpenAPI YAML; resolve \$ref pointers; flatten schemas; extract operation metadata};
+\node[badge, fill=teal!60!black, left=0.45cm of p2.west] {\textsf{2}};
+
+% Phase 3 - Green
+\node[phase, draw=green!45!black, fill=green!8, below=of p2] (p3)
+    {\textbf{\small JAR Introspection (EJB Metadata Extraction)}\\[3pt]
+     \footnotesize Read bytecode from client-kit JARs; detect EJB interfaces; extract method signatures and field paths};
+\node[badge, fill=green!50!black, left=0.45cm of p3.west] {\textsf{3}};
+
+% Phase 4 - Amber
+\node[phase, draw=orange!55!black, fill=orange!10, below=of p3] (p4)
+    {\textbf{\small Interactive Mapping \& Configuration Generation}\\[3pt]
+     \footnotesize Map API parameters to EJB fields via dropdowns; apply source inference; serialise to YAML config};
+\node[badge, fill=orange!60!black, left=0.45cm of p4.west] {\textsf{4}};
+
+% Phase 5 - Red
+\node[phase, draw=red!50!black, fill=red!8, below=of p4] (p5)
+    {\textbf{\small Module Generation \& Build Execution}\\[3pt]
+     \footnotesize Invoke generation scripts; scaffold Maven module; stream real-time output via Socket.IO};
+\node[badge, fill=red!55!black, left=0.45cm of p5.west] {\textsf{5}};
+
+% Arrows with colour-matched labels
+\draw[arr] (p1.south) -- node[right=5pt, font=\scriptsize, fill=blue!6,
+    draw=blue!30, rounded corners=3pt, inner sep=4pt, text=black!80]
+    {Module context + directory path} (p2.north);
+\draw[arr] (p2.south) -- node[right=5pt, font=\scriptsize, fill=teal!6,
+    draw=teal!30, rounded corners=3pt, inner sep=4pt, text=black!80]
+    {Parsed API operations + field paths} (p3.north);
+\draw[arr] (p3.south) -- node[right=5pt, font=\scriptsize, fill=green!6,
+    draw=green!25, rounded corners=3pt, inner sep=4pt, text=black!80]
+    {EJB method signatures + flattened field paths} (p4.north);
+\draw[arr] (p4.south) -- node[right=5pt, font=\scriptsize, fill=orange!6,
+    draw=orange!30, rounded corners=3pt, inner sep=4pt, text=black!80]
+    {User-config YAML (endpoint defs, call chains, mappings)} (p5.north);
+\end{tikzpicture}
+\caption{Five-phase workflow lifecycle of the API Development Tool, showing the key artifacts passed between each phase.}
+\label{fig:workflow_lifecycle}
+\end{figure}
+
+The phases are:
+\begin{enumerate}
+    \item \textbf{Module management}: create/select/delete modules and enforce normalised names plus directory conventions.
+    \item \textbf{Specification ingestion}: upload Swagger/OpenAPI YAML, resolve references, flatten schemas, and extract operation metadata.
+    \item \textbf{JAR introspection}: parse compiled client-kit bytecode, detect EJB interfaces, and extract method and field-path metadata with SHA-256 deduplication.
+    \item \textbf{Interactive mapping \& config generation}: map request/response fields (including multi-EJB chains), apply source inference, and generate YAML.
+    \item \textbf{Module generation}: invoke the PowerShell-driven generation flow and stream execution output through Socket.IO.
+\end{enumerate}
+
+\section{Persistence and Synchronisation}
+
+State is maintained through a hybrid model: sql.js in-process SQLite~\cite{sqljs_docs} for metadata and filesystem storage for artifacts. The core tables are \texttt{swagger\_files}, \texttt{client\_kit\_metadata}, and \texttt{user\_configs}, with unique constraints for duplicate prevention.
+
+Synchronization combines startup reconciliation, runtime chokidar watchers~\cite{chokidar_docs}, and frontend polling fallback. Reconciliation repairs drift between disk and database; watchers detect external file changes; Socket.IO broadcasts keep clients aligned.
+
+\section{Non-Functional Considerations}
+
+The platform supports HTTPS/HTTP modes. In HTTPS mode, it auto-generates self-signed certificates at first startup, which fits air-gapped deployment constraints. The frontend is packaged as a Tomcat WAR~\cite{tomcat_docs}; the backend runs under PM2.
+
+Portability is achieved through relative path resolution and dependency bundling. The stack runs without external database services or runtime internet access. A PowerShell packaging script automates validation, frontend build, WAR creation, and deployable ZIP assembly.
+
+\section{Future Enhancement Opportunities}
+
+The current scope covers the full connector workflow. Planned extensions include authentication and role control, cross-platform generation, stronger automated testing, containerised deployment, and multi-tenant isolation. The existing modular design can support these additions without architectural reset.
+
